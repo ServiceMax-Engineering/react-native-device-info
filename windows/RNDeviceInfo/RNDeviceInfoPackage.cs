@@ -1,30 +1,13 @@
-﻿using ReactNative.Bridge;
-using ReactNative.Modules.Core;
-using ReactNative.UIManager;
-using System;
-using System.Collections.Generic;
+﻿using Microsoft.ReactNative.Managed;
+using Microsoft.ReactNative;
 
 namespace RNDeviceInfo
 {
-    public class RNDeviceInfoPackage : IReactPackage
+    public sealed class RNDeviceInfoPackage : IReactPackageProvider
     {
-        public IReadOnlyList<INativeModule> CreateNativeModules(ReactContext reactContext)
+        public void CreatePackage(IReactPackageBuilder packageBuilder)
         {
-            return new List<INativeModule>
-            {
-                new RNDeviceInfoModule(reactContext)
-            };
-        }
-
-        public IReadOnlyList<Type> CreateJavaScriptModulesConfig()
-        {
-            return new List<Type>(0);
-        }
-
-        public IReadOnlyList<IViewManager> CreateViewManagers(
-            ReactContext reactContext)
-        {
-            return new List<IViewManager>(0);
+            packageBuilder.AddAttributedModules();
         }
     }
 }

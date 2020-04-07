@@ -1,32 +1,23 @@
-﻿using ReactNative.Bridge;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Globalization;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using Windows.ApplicationModel;
-using Windows.UI.Xaml;
-using Windows.UI.Xaml.Controls;
+using Windows.Devices.Power;
+using Windows.System;
+using Windows.Security.Credentials.UI;
+using Windows.Networking;
+using Windows.Networking.Connectivity;
+using System.Linq;
+using Microsoft.ReactNative.Managed;
+using System.Diagnostics;
 
 namespace RNDeviceInfo
 {
-    public class RNDeviceInfoModule : ReactContextNativeModuleBase
+    [ReactModule]
+    internal sealed class RNDeviceInfo
     {
-        public RNDeviceInfoModule(ReactContext reactContext)
-            : base(reactContext)
-        {
-        }
-
-        public override string Name
-        {
-            get
-            {
-                return "RNDeviceInfo";
-            }
-        }
-
         private bool IsEmulator(string model)
-        { 
+        {
             Regex rgx = new Regex("(?i:virtual)");
             return rgx.IsMatch(model);
         }
@@ -42,84 +33,146 @@ namespace RNDeviceInfo
             return DateTimeFormatInfo.CurrentInfo.ShortTimePattern.Contains("H");
         }
 
-        public override IReadOnlyDictionary<string, object> Constants
+        [ReactMethod]
+         public async void isPinOrFingerprintSet(ReactCallback<bool> actionCallback)
+         {
+             try
+             {
+                 var ucvAvailability = await UserConsentVerifier.CheckAvailabilityAsync();
+
+                 actionCallback(ucvAvailability == UserConsentVerifierAvailability.Available);
+             }
+             catch (Exception ex)
+             {
+                 actionCallback(false);
+             }
+         }
+
+        [ReactMethod]
+        public void getIpAddress(ReactPromise<string> promise)
         {
+            var hostNameType = HostNameType.Ipv4;
+            var icp = NetworkInformation.GetInternetConnectionProfile();
 
-            get
+            if (icp?.NetworkAdapter == null)
             {
-                Dictionary<string, object> constants = new Dictionary<string, object>();
-
-                constants["appVersion"] = "not available";
-                constants["buildVersion"] = "not available";
-                constants["buildNumber"] = 0;
-
-                Package package = Package.Current;
-                PackageId packageId = package.Id;
-                PackageVersion version = packageId.Version;
-                String packageName = package.DisplayName;
-
-                try
-                {
-                    constants["appVersion"] = string.Format("{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision);
-                    constants["buildNumber"] = version.Build.ToString();
-                    constants["buildVersion"] = version.Build.ToString();
-                }
-                catch
-                {
-                }
-
-                String deviceName = "not available";
-                String manufacturer = "not available";
-                String device_id = "not available";
-                String model = "not available";
-                String hardwareVersion = "not available";
-                String osVersion = "not available";
-                String os = "not available";
-
-                CultureInfo culture = CultureInfo.CurrentCulture;
-
-                try
-                {
-                    var deviceInfo = new Windows.Security.ExchangeActiveSyncProvisioning.EasClientDeviceInformation();
-                    deviceName = deviceInfo.FriendlyName;
-                    manufacturer = deviceInfo.SystemManufacturer;
-                    device_id = deviceInfo.Id.ToString();
-                    model = deviceInfo.SystemProductName;
-                    hardwareVersion = deviceInfo.SystemHardwareVersion;
-                    os = deviceInfo.OperatingSystem;
-                    
-
-                    string deviceFamilyVersion = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamilyVersion;
-                    ulong version2 = ulong.Parse(deviceFamilyVersion);
-                    ulong major = (version2 & 0xFFFF000000000000L) >> 48;
-                    ulong minor = (version2 & 0x0000FFFF00000000L) >> 32;
-                    osVersion = $"{major}.{minor}";
-                }
-                catch
-                {
-                }
-
-                constants["instanceId"] = "not available";
-                constants["deviceName"] = deviceName;
-                constants["systemName"] = "Windows";
-                constants["systemVersion"] = osVersion;
-                constants["apiLevel"] = "not available";
-                constants["model"] = model;
-                constants["brand"] = model;
-                constants["deviceId"] = hardwareVersion;
-                constants["deviceLocale"] = culture.Name;
-                constants["deviceCountry"] = culture.EnglishName;
-                constants["uniqueId"] = device_id;
-                constants["systemManufacturer"] = manufacturer;
-                constants["bundleId"] = packageName;
-                constants["userAgent"] = "not available";
-                constants["timezone"] = TimeZoneInfo.Local.Id;
-                constants["isEmulator"] = IsEmulator(model);
-                constants["isTablet"] = IsTablet(os);
-                constants["is24Hour"] = is24Hour();
-
-                return constants;
+                ReactError error = new ReactError();
+                error.Message = "Network adapter not found.";
+                promise.Reject(error);
+            }
+            else
+            {
+                var hostname = NetworkInformation.GetHostNames()
+                    .FirstOrDefault(
+                        hn =>
+                            hn.Type == hostNameType &&
+                            hn.IPInformation?.NetworkAdapter != null &&
+                            hn.IPInformation.NetworkAdapter.NetworkAdapterId == icp.NetworkAdapter.NetworkAdapterId);
+                promise.Resolve(hostname?.CanonicalName);
             }
         }
+
+        [ReactMethod]
+         public void getBatteryLevel(IReactPromise<double> promise)
+         {
+             // Create aggregate battery object
+             var aggBattery = Battery.AggregateBattery;
+
+             // Get report
+             var report = aggBattery.GetReport();
+
+             if ((report.FullChargeCapacityInMilliwattHours == null) ||
+                 (report.RemainingCapacityInMilliwattHours == null))
+             {
+                 ReactError error = new ReactError();
+                 error.Message = "Could not fetch battery information.";
+                 promise.Reject(error);
+             }
+             else
+             {
+                 var max = Convert.ToDouble(report.FullChargeCapacityInMilliwattHours);
+                 var value = Convert.ToDouble(report.RemainingCapacityInMilliwattHours);
+                 promise.Resolve(value / max);
+             }
+         }
+        #region Constants
+        [ReactConstantProvider]
+        public void ConstantsViaConstantsProvider(ReactConstantProvider provider)
+        {
+
+            provider.Add("appVersion", "not available");
+            provider.Add("buildVersion", "not available");
+            provider.Add("buildNumber", 0);
+
+            Package package = Package.Current;
+            PackageId packageId = package.Id;
+            PackageVersion version = packageId.Version;
+            String bundleId = packageId.Name;
+            String appName = package.DisplayName;
+
+            try
+            {
+                provider.Add("appVersion", string.Format("{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision));
+                provider.Add("buildVersion", version.Build.ToString());
+                provider.Add("buildNumber", version.Build.ToString());
+            }
+            catch
+            {
+            }
+
+            String deviceName = "not available";
+            String manufacturer = "not available";
+            String device_id = "not available";
+            String model = "not available";
+            String hardwareVersion = "not available";
+            String osVersion = "not available";
+            String os = "not available";
+
+            CultureInfo culture = CultureInfo.CurrentCulture;
+
+            try
+            {
+                var deviceInfo = new Windows.Security.ExchangeActiveSyncProvisioning.EasClientDeviceInformation();
+                deviceName = deviceInfo.FriendlyName;
+                manufacturer = deviceInfo.SystemManufacturer;
+                device_id = deviceInfo.Id.ToString();
+                model = deviceInfo.SystemProductName;
+                hardwareVersion = deviceInfo.SystemHardwareVersion;
+                os = deviceInfo.OperatingSystem;
+
+
+                string deviceFamilyVersion = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamilyVersion;
+                ulong version2 = ulong.Parse(deviceFamilyVersion);
+                ulong major = (version2 & 0xFFFF000000000000L) >> 48;
+                ulong minor = (version2 & 0x0000FFFF00000000L) >> 32;
+                osVersion = $"{major}.{minor}";
+            }
+            catch
+            {
+            }
+            provider.Add("instanceId", "not available");
+            provider.Add("deviceName", deviceName);
+            provider.Add("systemName", "Windows");
+            provider.Add("systemVersion", osVersion);
+            provider.Add("apiLevel", "not available");
+            provider.Add("model", model);
+            provider.Add("brand", model);
+            provider.Add("deviceId", hardwareVersion);
+            provider.Add("deviceLocale", culture.Name);
+            provider.Add("deviceCountry", culture.EnglishName);
+            provider.Add("uniqueId", device_id);
+            provider.Add("systemManufacturer", manufacturer);
+            provider.Add("bundleId", bundleId);
+            provider.Add("appName", appName);
+            provider.Add("userAgent", "not available");
+            provider.Add("timezone", TimeZoneInfo.Local.Id);
+            provider.Add("isEmulator", IsEmulator(model));
+            provider.Add("isTablet", IsTablet(os));
+            provider.Add("carrier", "not available");
+            provider.Add("is24Hour", is24Hour());
+            provider.Add("maxMemory", MemoryManager.AppMemoryUsageLimit);
+            provider.Add("firstInstallTime", package.InstalledDate.ToUnixTimeMilliseconds());
+        }
+        #endregion
     }
 }
