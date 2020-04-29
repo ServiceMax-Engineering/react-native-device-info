@@ -129,6 +129,8 @@ namespace RNDeviceInfo
             String os = "not available";
 
             CultureInfo culture = CultureInfo.CurrentCulture;
+            var ri = new RegionInfo(culture.Name);
+            string countryAbbrivation = ri.TwoLetterISORegionName;
 
             try
             {
@@ -159,7 +161,7 @@ namespace RNDeviceInfo
             provider.Add("brand", model);
             provider.Add("deviceId", hardwareVersion);
             provider.Add("deviceLocale", culture.Name);
-            provider.Add("deviceCountry", culture.EnglishName);
+            provider.Add("deviceCountry", countryAbbrivation);
             provider.Add("uniqueId", device_id);
             provider.Add("systemManufacturer", manufacturer);
             provider.Add("bundleId", bundleId);
