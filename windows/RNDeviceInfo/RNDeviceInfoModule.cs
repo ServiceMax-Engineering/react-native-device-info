@@ -10,6 +10,7 @@ using Windows.Networking.Connectivity;
 using System.Linq;
 using Microsoft.ReactNative.Managed;
 using System.Diagnostics;
+using Windows.Globalization.DateTimeFormatting;
 
 namespace RNDeviceInfo
 {
@@ -128,9 +129,11 @@ namespace RNDeviceInfo
             String osVersion = "not available";
             String os = "not available";
 
-            CultureInfo culture = CultureInfo.CurrentCulture;
-            var ri = new RegionInfo(culture.Name);
-            string countryAbbrivation = ri.TwoLetterISORegionName;
+            var cultureName = new DateTimeFormatter("longdate", new[] { "US" }).ResolvedLanguage;
+            CultureInfo culture = new CultureInfo(cultureName);
+
+            var geographicRegion = new Windows.Globalization.GeographicRegion();
+            string countryAbbrivation = geographicRegion.CodeTwoLetter;
 
             try
             {
