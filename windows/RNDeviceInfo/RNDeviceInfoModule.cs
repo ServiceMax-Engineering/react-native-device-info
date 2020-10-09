@@ -35,17 +35,17 @@ namespace RNDeviceInfo
         }
 
         [ReactMethod]
-         public async void isPinOrFingerprintSet(ReactCallback<bool> actionCallback)
+         public async void isPinOrFingerprintSet(Action<bool> actionCallback)
          {
              try
              {
                  var ucvAvailability = await UserConsentVerifier.CheckAvailabilityAsync();
 
-                 actionCallback(ucvAvailability == UserConsentVerifierAvailability.Available);
+                 actionCallback.Invoke(ucvAvailability == UserConsentVerifierAvailability.Available);
              }
              catch (Exception ex)
              {
-                 actionCallback(false);
+                 actionCallback.Invoke(false);
              }
          }
 
