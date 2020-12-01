@@ -162,7 +162,7 @@ namespace RNDeviceInfo
             provider.Add("apiLevel", "not available");
             provider.Add("model", model);
             provider.Add("brand", model);
-            provider.Add("deviceId", hardwareVersion);
+            provider.Add("deviceId", device_id);
             provider.Add("deviceLocale", culture.Name);
             provider.Add("deviceCountry", countryAbbrivation);
             provider.Add("uniqueId", device_id);
