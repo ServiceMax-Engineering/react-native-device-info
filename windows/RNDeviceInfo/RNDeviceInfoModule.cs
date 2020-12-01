@@ -106,7 +106,7 @@ namespace RNDeviceInfo
                 constants["apiLevel"] = "not available";
                 constants["model"] = model;
                 constants["brand"] = model;
-                constants["deviceId"] = hardwareVersion;
+                constants["deviceId"] = device_id;
                 constants["deviceLocale"] = culture.Name;
                 constants["deviceCountry"] = culture.EnglishName;
                 constants["uniqueId"] = device_id;
