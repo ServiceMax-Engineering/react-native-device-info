@@ -128,6 +128,7 @@ namespace RNDeviceInfo
             String hardwareVersion = "not available";
             String osVersion = "not available";
             String os = "not available";
+            string userAgent = "not available";
 
             var cultureName = new DateTimeFormatter("longdate", new[] { "US" }).ResolvedLanguage;
             CultureInfo culture = new CultureInfo(cultureName);
@@ -151,6 +152,8 @@ namespace RNDeviceInfo
                 ulong major = (version2 & 0xFFFF000000000000L) >> 48;
                 ulong minor = (version2 & 0x0000FFFF00000000L) >> 32;
                 osVersion = $"{major}.{minor}";
+
+                userAgent = string.Format("{0}/{1} Windows/{2} {3};{4}", appName, version.Major, osVersion, deviceName, model);
             }
             catch
             {
@@ -169,7 +172,7 @@ namespace RNDeviceInfo
             provider.Add("systemManufacturer", manufacturer);
             provider.Add("bundleId", bundleId);
             provider.Add("appName", appName);
-            provider.Add("userAgent", "not available");
+            provider.Add("userAgent", userAgent);
             provider.Add("timezone", TimeZoneInfo.Local.Id);
             provider.Add("isEmulator", IsEmulator(model));
             provider.Add("isTablet", IsTablet(os));
